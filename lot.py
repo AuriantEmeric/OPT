@@ -190,7 +190,7 @@ def low_rank_ot(
     start = time.time()
 
     cost = []
-    err = []
+    criterion = []
     times = []
 
     # Initial values
@@ -257,14 +257,14 @@ def low_rank_ot(
         cost_curr = Q.T @ cost_curr
         cost_curr = np.trace(cost_curr)
 
-        criterion = (KL(Q, Q_prev, lbd=lbd_kl) + KL(Q_prev, Q, lbd=lbd_kl))
-        criterion += (KL(R, R_prev, lbd=lbd_kl) + KL(R_prev, R, lbd=lbd_kl))
-        criterion += (KL(g, g_prev, lbd=lbd_kl) + KL(g_prev, g, lbd=lbd_kl))
-        criterion *= ((1 / gamma) ** 2)
+        criterion_curr = (KL(Q, Q_prev, lbd=lbd_kl) + KL(Q_prev, Q, lbd=lbd_kl))
+        criterion_curr += (KL(R, R_prev, lbd=lbd_kl) + KL(R_prev, R, lbd=lbd_kl))
+        criterion_curr += (KL(g, g_prev, lbd=lbd_kl) + KL(g_prev, g, lbd=lbd_kl))
+        criterion_curr *= ((1 / gamma) ** 2)
 
         # Check that the cost and the error are well-defined
-        if np.isnan(criterion) or np.isnan(cost_curr):
-            if np.isnan(criterion):
+        if np.isnan(criterion_curr) or np.isnan(cost_curr):
+            if np.isnan(criterion_curr):
                 print("Break: criterion is nan at iter ", n_iter)
             else:
                 print("Break: cost is nan at iter:", n_iter)
@@ -273,25 +273,27 @@ def low_rank_ot(
             g = g_prev
             break
 
-        err.append(err_curr)
+        criterion.append(criterion_curr)
         cost.append(cost_curr)
 
         # Avoid early stop
         if n_iter > 1:
             # If the criterion is way larger than delta
-            if criterion > delta * 10:
-                err_curr = criterion
+            # We can safely update the error
+            if criterion_curr > delta * 10:
+                err_curr = criterion_curr
 
             # If the criterion is comparable or smaller with delta
+            # We update the number of possible escape
             else:
                 count_escape += 1
                 if count_escape != n_iter:
-                    err_curr = criterion
+                    err_curr = criterion_curr
 
         time_actual = time.time() - start
         times.append(time_actual)
 
-    return np.array(err), np.array(cost), np.array(times), Q, R, g
+    return np.array(criterion), np.array(cost), np.array(times), Q, R, g
 
 
 def low_rank_ot_linear(
@@ -316,7 +318,7 @@ def low_rank_ot_linear(
     """Linear version of the Low Rank Optimal Transport solver."""
     start = time.time()
     cost = []
-    err = []
+    criterion = []
     times = []
 
     # Initial values
@@ -391,14 +393,14 @@ def low_rank_ot_linear(
         # Compute cost and error
         cost_curr = np.trace(CQ.T @ CR / g)
 
-        criterion = (KL(Q, Q_prev, lbd=lbd_kl) + KL(Q_prev, Q, lbd=lbd_kl))
-        criterion += (KL(R, R_prev, lbd=lbd_kl) + KL(R_prev, R, lbd=lbd_kl))
-        criterion += (KL(g, g_prev, lbd=lbd_kl) + KL(g_prev, g, lbd=lbd_kl))
-        criterion *= ((1 / gamma) ** 2)
+        criterion_curr = (KL(Q, Q_prev, lbd=lbd_kl) + KL(Q_prev, Q, lbd=lbd_kl))
+        criterion_curr += (KL(R, R_prev, lbd=lbd_kl) + KL(R_prev, R, lbd=lbd_kl))
+        criterion_curr += (KL(g, g_prev, lbd=lbd_kl) + KL(g_prev, g, lbd=lbd_kl))
+        criterion_curr *= ((1 / gamma) ** 2)
 
         # Check that the cost and the error are well-defined
-        if np.isnan(criterion) or np.isnan(cost_curr):
-            if np.isnan(criterion):
+        if np.isnan(criterion_curr) or np.isnan(cost_curr):
+            if np.isnan(criterion_curr):
                 print("Break: criterion is nan at iter ", n_iter)
             else:
                 print("Break cost is nan at iter ", n_iter)
@@ -407,24 +409,24 @@ def low_rank_ot_linear(
             g = g_prev
             break
 
-        err.append(err_curr)
+        criterion.append(criterion_curr)
         cost.append(cost_curr)
 
         # Avoid early stop
         if n_iter > 1:
             # If the criterion is way larger than delta
             # We can safely update the error
-            if criterion > delta * 10:
-                err_curr = criterion
+            if criterion_curr > delta * 10:
+                err_curr = criterion_curr
 
             # If the criterion is comparable or smaller with delta
             # We update the number of possible escape
             else:
                 count_escape += 1
                 if count_escape != n_iter:
-                    err_curr = criterion
+                    err_curr = criterion_curr
 
         time_actual = time.time() - start
         times.append(time_actual)
 
-    return np.array(err), np.array(cost), np.array(times), Q, R, g
+    return np.array(criterion), np.array(cost), np.array(times), Q, R, g
